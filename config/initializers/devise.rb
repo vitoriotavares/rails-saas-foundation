@@ -271,8 +271,21 @@ Devise.setup do |config|
   # ==> OmniAuth
   # Add a new OmniAuth provider. Check the wiki for more information on setting
   # up on your models and hooks.
-  config.omniauth :google_oauth2, Rails.application.credentials.google_oauth2&.dig(:client_id), Rails.application.credentials.google_oauth2&.dig(:client_secret)
-  config.omniauth :github, Rails.application.credentials.github&.dig(:client_id), Rails.application.credentials.github&.dig(:client_secret), scope: 'user:email'
+  
+  # Use environment variables as fallback if credentials are not set
+  google_client_id = ENV['GOOGLE_CLIENT_ID'] || Rails.application.credentials.dig(:google_oauth2, :client_id)
+  google_client_secret = ENV['GOOGLE_CLIENT_SECRET'] || Rails.application.credentials.dig(:google_oauth2, :client_secret)
+  
+  github_client_id = ENV['GITHUB_CLIENT_ID'] || Rails.application.credentials.dig(:github, :client_id)
+  github_client_secret = ENV['GITHUB_CLIENT_SECRET'] || Rails.application.credentials.dig(:github, :client_secret)
+  
+  if google_client_id.present? && google_client_secret.present?
+    config.omniauth :google_oauth2, google_client_id, google_client_secret
+  end
+  
+  if github_client_id.present? && github_client_secret.present?
+    config.omniauth :github, github_client_id, github_client_secret, scope: 'user:email'
+  end
 
   # ==> Warden configuration
   # If you want to use other strategies, that are not supported by Devise, or

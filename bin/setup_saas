@@ -244,11 +244,29 @@ else
   end
 end
 
-# Generate new master key if needed
-if !File.exist?('config/master.key')
-  ColorOutput.info("Generating new master key...")
-  run_command("EDITOR=echo rails credentials:edit", "Creating credentials", silent: true)
-  ColorOutput.success("Master key generated")
+# Handle Rails credentials
+ColorOutput.info("Setting up Rails credentials...")
+
+# Remove old credentials if they exist (from template)
+if File.exist?('config/credentials.yml.enc')
+  FileUtils.rm('config/credentials.yml.enc')
+  ColorOutput.info("Removed template credentials")
+end
+
+# Remove old master key if it exists
+if File.exist?('config/master.key')
+  FileUtils.rm('config/master.key')
+  ColorOutput.info("Removed old master key")
+end
+
+# Generate new credentials
+run_command("EDITOR='echo' bin/rails credentials:edit", "Generating new credentials", silent: true)
+ColorOutput.success("New credentials generated")
+
+# Ensure master.key has proper permissions
+if File.exist?('config/master.key')
+  FileUtils.chmod(0600, 'config/master.key')
+  ColorOutput.info("Master key permissions set to 0600")
 end
 
 if install_deps
