@@ -30,7 +30,7 @@ gem "omniauth-rails_csrf_protection"
 gem "sidekiq"
 
 # Billing & Subscriptions
-gem "pay", "~> 7.0"
+gem "pay", "~> 11.2"
 
 # SEO & Performance
 gem "meta-tags"
