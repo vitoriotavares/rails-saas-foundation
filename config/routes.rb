@@ -3,11 +3,13 @@ Rails.application.routes.draw do
     omniauth_callbacks: 'users/omniauth_callbacks'
   }
 
-  # Pay webhooks - Only mount if Pay is loaded
-  begin
-    mount Pay::Engine, at: "/pay" if defined?(Pay::Engine)
-  rescue ArgumentError => e
-    Rails.logger.warn "Pay::Engine already mounted or route conflict: #{e.message}"
+  # Pay webhooks - Mount at different path to avoid conflicts
+  if defined?(Pay::Engine)
+    begin
+      mount Pay::Engine, at: "/payments", as: "pay_engine"
+    rescue ArgumentError => e
+      Rails.logger.warn "Pay::Engine mount failed: #{e.message}"
+    end
   end
 
   # Sidekiq Web UI (password protected)
