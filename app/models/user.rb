@@ -5,7 +5,7 @@ class User < ApplicationRecord
          :recoverable, :rememberable, :validatable,
          :omniauthable, omniauth_providers: [:google_oauth2, :github]
 
-  # Pay gem integration for billing (only if Pay is loaded)
+  # Pay gem integration for billing (conditional loading)
   if defined?(Pay)
     pay_customer stripe_attributes: :stripe_attributes,
                  paddle_attributes: :paddle_attributes

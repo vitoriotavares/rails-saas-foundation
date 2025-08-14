@@ -1,0 +1,95 @@
+<div class="max-w-4xl mx-auto">
+  <div class="flex justify-between items-center mb-8">
+    <h1 class="text-3xl font-bold text-gray-900">Billing & Subscriptions</h1>
+    <%= link_to "Back to Dashboard", dashboard_path, class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <!-- Current Subscription -->
+    <div class="bg-white p-6 rounded-lg shadow">
+      <h2 class="text-xl font-semibold mb-4">Current Subscription</h2>
+      <% if @subscriptions&.any? %>
+        <% @subscriptions.each do |subscription| %>
+          <div class="border-l-4 border-green-400 pl-4 mb-4">
+            <p class="font-medium text-green-700"><%= subscription.name.titleize %></p>
+            <p class="text-sm text-gray-600">Status: <%= subscription.status.titleize %></p>
+            <% if subscription.current_period_end %>
+              <p class="text-sm text-gray-600">Next billing: <%= subscription.current_period_end.strftime("%B %d, %Y") %></p>
+            <% end %>
+            <% if subscription.trial_ends_at && subscription.trial_ends_at > Time.current %>
+              <p class="text-sm text-blue-600">Trial ends: <%= subscription.trial_ends_at.strftime("%B %d, %Y") %></p>
+            <% end %>
+          </div>
+        <% end %>
+      <% else %>
+        <p class="text-gray-600 mb-4">No active subscription</p>
+        <%= link_to "Choose a Plan", checkout_subscription_path(@user), class: "inline-block bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" %>
+      <% end %>
+    </div>
+
+    <!-- Payment Methods -->
+    <div class="bg-white p-6 rounded-lg shadow">
+      <h2 class="text-xl font-semibold mb-4">Payment Methods</h2>
+      <% if @payment_methods&.any? %>
+        <% @payment_methods.each do |payment_method| %>
+          <div class="border rounded-lg p-3 mb-3">
+            <div class="flex justify-between items-center">
+              <div>
+                <p class="font-medium">•••• •••• •••• <%= payment_method.data['last4'] if payment_method.data %></p>
+                <p class="text-sm text-gray-600">
+                  <%= payment_method.data['brand']&.titleize if payment_method.data %> 
+                  <% if payment_method.data %>
+                    expires <%= payment_method.data['exp_month'] %>/<%= payment_method.data['exp_year'] %>
+                  <% end %>
+                </p>
+              </div>
+              <% if payment_method.default? %>
+                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Default</span>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      <% else %>
+        <p class="text-gray-600">No payment methods on file</p>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Billing Actions -->
+  <div class="mt-8 bg-white p-6 rounded-lg shadow">
+    <h2 class="text-xl font-semibold mb-4">Billing Actions</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <% if @subscriptions&.any? %>
+        <div class="p-4 border rounded-lg">
+          <h3 class="font-medium mb-2">Manage Subscription</h3>
+          <p class="text-sm text-gray-600 mb-3">Update your plan or cancel subscription</p>
+          <button class="w-full bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600" disabled>
+            Coming Soon
+          </button>
+        </div>
+      <% else %>
+        <div class="p-4 border rounded-lg">
+          <h3 class="font-medium mb-2">Subscribe to a Plan</h3>
+          <p class="text-sm text-gray-600 mb-3">Choose a plan to get started</p>
+          <%= link_to "View Plans", checkout_subscription_path(@user), class: "w-full inline-block text-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded" %>
+        </div>
+      <% end %>
+      
+      <div class="p-4 border rounded-lg">
+        <h3 class="font-medium mb-2">Payment Methods</h3>
+        <p class="text-sm text-gray-600 mb-3">Add or update payment methods</p>
+        <button class="w-full bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600" disabled>
+          Coming Soon
+        </button>
+      </div>
+      
+      <div class="p-4 border rounded-lg">
+        <h3 class="font-medium mb-2">Billing History</h3>
+        <p class="text-sm text-gray-600 mb-3">View invoices and payment history</p>
+        <button class="w-full bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600" disabled>
+          Coming Soon
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

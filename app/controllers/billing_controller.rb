@@ -3,8 +3,27 @@ class BillingController < ApplicationController
   before_action :set_user
 
   def show
-    @payment_methods = @user.payment_methods
-    @subscriptions = @user.subscriptions
+    @payment_methods = begin
+      if @user.respond_to?(:payment_methods) && defined?(Pay)
+        @user.payment_methods
+      else
+        []
+      end
+    rescue => e
+      Rails.logger.error "Error loading payment methods: #{e.message}"
+      []
+    end
+
+    @subscriptions = begin
+      if @user.respond_to?(:subscriptions) && defined?(Pay)
+        @user.subscriptions
+      else
+        []
+      end
+    rescue => e
+      Rails.logger.error "Error loading subscriptions: #{e.message}"
+      []
+    end
   end
 
   def checkout
@@ -38,17 +57,18 @@ class BillingController < ApplicationController
     when 'paddle'
       create_paddle_checkout_session(plan_id)
     else
-      redirect_to billing_checkout_path(@user), alert: 'Invalid processor selected'
+      redirect_to checkout_subscription_path(@user), alert: 'Invalid processor selected'
     end
   rescue => e
     Rails.logger.error "Checkout error: #{e.message}"
-    redirect_to billing_checkout_path(@user), alert: 'An error occurred while creating checkout session'
+    redirect_to checkout_subscription_path(@user), alert: 'An error occurred while creating checkout session'
   end
 
   private
 
   def set_user
     @user = current_user
+    redirect_to new_user_session_path unless @user
   end
 
   def create_stripe_checkout_session(plan_id)
@@ -59,7 +79,7 @@ class BillingController < ApplicationController
         quantity: 1
       }],
       success_url: dashboard_url + "?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: billing_checkout_url(@user)
+      cancel_url: checkout_subscription_url(@user)
     )
     
     redirect_to session.url, allow_other_host: true
@@ -68,6 +88,6 @@ class BillingController < ApplicationController
   def create_paddle_checkout_session(plan_id)
     # Paddle implementation would go here
     # For now, redirect to Stripe
-    redirect_to billing_checkout_path(@user), alert: 'Paddle integration coming soon!'
+    redirect_to checkout_subscription_path(@user), alert: 'Paddle integration coming soon!'
   end
 end
