@@ -6,3 +6,6 @@ import { application } from "./application"
 
 import HelloController from "./hello_controller"
 application.register("hello", HelloController)
+
+import AlertDialogController from "./alert_dialog_controller"
+application.register("alert-dialog", AlertDialogController)

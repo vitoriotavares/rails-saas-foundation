@@ -19,7 +19,25 @@
     </div>
   </div>
 
-  <div class="mt-12">
+  <div class="mt-12 space-x-4">
     <%= link_to "Get Started", new_user_registration_path, class: "bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg" %>
+    
+    <% dialog_id = alert_dialog do %>
+      <%= alert_dialog_content(
+            title: "Are you absolutely sure?", 
+            description: "This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
+            icon: { type: "destructive" }
+          ) do %>
+        <%= alert_dialog_footer do %>
+          <%= alert_dialog_button "Cancel", type: :cancel %>
+          <%= alert_dialog_button "Continue", type: :destructive, action: "click->alert-dialog#close" %>
+        <% end %>
+      <% end %>
+    <% end %>
+    
+    <button onclick="document.getElementById('<%= dialog_id %>').dispatchEvent(new CustomEvent('alert-dialog:show'))" 
+            class="bg-red-500 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg">
+      Test Alert Dialog
+    </button>
   </div>
 </div>

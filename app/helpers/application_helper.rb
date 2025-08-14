@@ -1,5 +1,6 @@
 module ApplicationHelper
   include SeoHelper
+  include AlertDialogHelper
 
   def flash_class(level)
     case level.to_s
