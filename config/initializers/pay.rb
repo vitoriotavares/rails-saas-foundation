@@ -1,3 +1,6 @@
+# Only configure Pay if it's not already configured
+return if defined?(@pay_configured)
+
 Pay.setup do |config|
   # For use in the notification email that gets sent on successful payments
   # You'll want to replace this with your actual product name
@@ -41,3 +44,5 @@ Pay.setup do |config|
   # Callback when a customer has been deleted
   # config.on_customer_destroy = Proc.new {|customer| WebhookJob.perform_later("customer.destroy", customer) }
 end
+
+@pay_configured = true

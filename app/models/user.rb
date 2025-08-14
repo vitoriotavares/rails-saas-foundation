@@ -5,9 +5,11 @@ class User < ApplicationRecord
          :recoverable, :rememberable, :validatable,
          :omniauthable, omniauth_providers: [:google_oauth2, :github]
 
-  # Pay gem integration for billing
-  pay_customer stripe_attributes: :stripe_attributes,
-               paddle_attributes: :paddle_attributes
+  # Pay gem integration for billing (only if Pay is loaded)
+  if defined?(Pay)
+    pay_customer stripe_attributes: :stripe_attributes,
+                 paddle_attributes: :paddle_attributes
+  end
 
   # Validations
   validates :first_name, :last_name, presence: true, on: :update
