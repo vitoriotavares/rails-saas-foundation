@@ -1,0 +1,57 @@
+{
+  "name": "SaaS Foundation",
+  "description": "A Rails 8 SaaS foundation template with authentication, billing, and background jobs",
+  "keywords": ["rails", "saas", "stripe", "devise", "sidekiq"],
+  "website": "https://github.com/your-username/saas-foundation",
+  "repository": "https://github.com/your-username/saas-foundation",
+  "stack": "heroku-24",
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    },
+    {
+      "url": "heroku/ruby"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    },
+    "worker": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:essential-0"
+    },
+    {
+      "plan": "heroku-redis:essential-0"
+    }
+  ],
+  "env": {
+    "BUNDLE_WITHOUT": "development:test",
+    "LANG": "en_US.UTF-8",
+    "RACK_ENV": "production",
+    "RAILS_ENV": "production",
+    "RAILS_LOG_TO_STDOUT": "enabled",
+    "RAILS_SERVE_STATIC_FILES": "enabled",
+    "SIDEKIQ_USERNAME": {
+      "description": "Username for Sidekiq web interface",
+      "value": "admin"
+    },
+    "SIDEKIQ_PASSWORD": {
+      "description": "Password for Sidekiq web interface",
+      "generator": "secret"
+    },
+    "SECRET_KEY_BASE": {
+      "description": "A secret key for verifying the integrity of signed cookies",
+      "generator": "secret"
+    }
+  },
+  "scripts": {
+    "postdeploy": "bundle exec rails db:migrate"
+  }
+}

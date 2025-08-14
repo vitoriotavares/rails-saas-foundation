@@ -1,0 +1,41 @@
+# Hatchbox deployment configuration
+name: saas-foundation
+ruby_version: "3.4.1"
+node_version: "20"
+
+# Database
+database:
+  type: postgresql
+  name: saas_foundation_production
+
+# Redis for Sidekiq
+redis: true
+
+# Environment variables
+environment:
+  RAILS_ENV: production
+  BUNDLE_WITHOUT: "development:test"
+  RAILS_LOG_TO_STDOUT: "true"
+  RAILS_SERVE_STATIC_FILES: "true"
+
+# Services
+services:
+  - name: web
+    command: bundle exec puma -C config/puma.rb
+    port: 3000
+  - name: worker
+    command: bundle exec sidekiq
+
+# Deployment hooks
+hooks:
+  before_deploy:
+    - yarn install
+    - yarn build
+    - yarn build:css
+  after_deploy:
+    - bundle exec rails db:migrate
+    - bundle exec rails assets:precompile
+
+# SSL
+ssl: true
+force_ssl: true

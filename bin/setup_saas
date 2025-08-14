@@ -1,0 +1,131 @@
+#!/usr/bin/env ruby
+require 'fileutils'
+require 'securerandom'
+
+# Helper methods
+def run_command(command, description = nil)
+  puts "→ #{description || command}"
+  system(command) || abort("Command failed: #{command}")
+end
+
+def ask_question(question, default = nil)
+  print "#{question}"
+  print " [#{default}]" if default
+  print ": "
+  answer = gets.chomp
+  answer.empty? ? default : answer
+end
+
+def generate_secret
+  SecureRandom.hex(64)
+end
+
+puts "🚀 SaaS Foundation Setup"
+puts "========================"
+puts ""
+
+# Check if this is a fresh clone
+if File.exist?('.git') && File.read('.git/HEAD').include?('saas_foundation')
+  puts "⚠️  This appears to be the original SaaS Foundation repository."
+  puts "   You should fork or clone this to a new project directory first."
+  puts ""
+  exit 1
+end
+
+# Get project information
+project_name = ask_question("What's your project name?", "My SaaS App")
+project_slug = project_name.downcase.gsub(/[^a-z0-9]/, '_')
+database_name = "#{project_slug}_development"
+
+puts ""
+puts "📝 Project Setup"
+puts "=================="
+
+# Update application name
+puts "→ Updating application name..."
+config_app = File.read('config/application.rb')
+config_app.gsub!('SaasFoundation', project_name.gsub(/[^A-Za-z0-9]/, ''))
+File.write('config/application.rb', config_app)
+
+# Update database configuration
+puts "→ Updating database configuration..."
+database_config = File.read('config/database.yml')
+database_config.gsub!('saas_foundation', project_slug)
+File.write('config/database.yml', database_config)
+
+# Update package.json
+puts "→ Updating package.json..."
+package_json = File.read('package.json')
+package_json.gsub!('"name": "app"', %("name": "#{project_slug}"))
+File.write('package.json', package_json)
+
+# Create environment files
+puts ""
+puts "🔐 Environment Setup"
+puts "==================="
+
+if File.exist?('.env')
+  puts "→ .env file already exists, skipping..."
+else
+  puts "→ Creating .env file..."
+  FileUtils.cp('.env.example', '.env')
+  
+  # Update .env with generated secrets
+  env_content = File.read('.env')
+  env_content.gsub!('your_google_client_id', 'REPLACE_WITH_GOOGLE_CLIENT_ID')
+  env_content.gsub!('your_google_client_secret', 'REPLACE_WITH_GOOGLE_CLIENT_SECRET')
+  env_content.gsub!('your_github_client_id', 'REPLACE_WITH_GITHUB_CLIENT_ID')
+  env_content.gsub!('your_github_client_secret', 'REPLACE_WITH_GITHUB_CLIENT_SECRET')
+  env_content.gsub!('postgresql://localhost/saas_foundation_development', "postgresql://localhost/#{database_name}")
+  File.write('.env', env_content)
+end
+
+puts ""
+puts "📦 Dependencies"
+puts "==============="
+
+# Install Ruby dependencies
+run_command("bundle install", "Installing Ruby gems...")
+
+# Install Node dependencies
+run_command("yarn install", "Installing Node packages...")
+
+puts ""
+puts "🗄️  Database Setup"
+puts "=================="
+
+# Setup database
+run_command("rails db:create", "Creating databases...")
+run_command("rails db:migrate", "Running migrations...")
+
+# Build assets
+puts ""
+puts "🎨 Assets"
+puts "========="
+run_command("yarn build", "Building JavaScript...")
+run_command("yarn build:css", "Building CSS...")
+
+puts ""
+puts "✅ Setup Complete!"
+puts "=================="
+puts ""
+puts "Your SaaS Foundation is ready! Here's what to do next:"
+puts ""
+puts "1. 📝 Update your .env file with real API keys:"
+puts "   - Google OAuth: https://console.developers.google.com/"
+puts "   - GitHub OAuth: https://github.com/settings/applications/new"
+puts "   - Stripe: https://dashboard.stripe.com/apikeys"
+puts ""
+puts "2. 🚀 Start the development server:"
+puts "   rails server"
+puts ""
+puts "3. 🔧 Start Sidekiq for background jobs:"
+puts "   bundle exec sidekiq"
+puts ""
+puts "4. 📧 For email testing, install MailCatcher:"
+puts "   gem install mailcatcher && mailcatcher"
+puts ""
+puts "5. 🧪 Run the test suite:"
+puts "   rspec  # or: rails test"
+puts ""
+puts "Happy coding! 🎉"
