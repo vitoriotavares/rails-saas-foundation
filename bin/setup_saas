@@ -75,17 +75,21 @@ end
 def check_requirements
   ColorOutput.section("🔍 Checking Requirements")
   
-  requirements = {
+  required = {
     'ruby' => '3.0.0',
     'node' => '18.0.0',
     'yarn' => '1.0.0',
-    'psql' => nil,
-    'redis-cli' => nil
+    'psql' => nil
   }
   
-  all_ok = true
+  optional = {
+    'redis-cli' => 'Redis (for background jobs with Sidekiq)'
+  }
   
-  requirements.each do |cmd, min_version|
+  all_required_ok = true
+  
+  # Check required dependencies
+  required.each do |cmd, min_version|
     stdout, stderr, status = Open3.capture3("which #{cmd}")
     
     if status.success?
@@ -109,12 +113,23 @@ def check_requirements
       end
     else
       ColorOutput.error("#{cmd} not found - please install it first")
-      all_ok = false
+      all_required_ok = false
     end
   end
   
-  unless all_ok
-    ColorOutput.error("Missing requirements. Please install them and try again.")
+  # Check optional dependencies
+  optional.each do |cmd, description|
+    stdout, stderr, status = Open3.capture3("which #{cmd}")
+    
+    if status.success?
+      ColorOutput.success("#{cmd} found (optional)")
+    else
+      ColorOutput.warning("#{cmd} not found - #{description} won't work")
+    end
+  end
+  
+  unless all_required_ok
+    ColorOutput.error("Missing required dependencies. Please install them and try again.")
     exit 1
   end
 end
