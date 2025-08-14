@@ -1,131 +1,342 @@
 #!/usr/bin/env ruby
 require 'fileutils'
 require 'securerandom'
+require 'open3'
+
+# Color output helpers
+class ColorOutput
+  def self.success(message)
+    puts "\e[32m✓\e[0m #{message}"
+  end
+
+  def self.error(message)
+    puts "\e[31m✗\e[0m #{message}"
+  end
+
+  def self.info(message)
+    puts "\e[34m→\e[0m #{message}"
+  end
+
+  def self.warning(message)
+    puts "\e[33m⚠\e[0m #{message}"
+  end
+
+  def self.section(title)
+    puts ""
+    puts "\e[36m#{title}\e[0m"
+    puts "=" * title.length
+  end
+end
 
 # Helper methods
-def run_command(command, description = nil)
-  puts "→ #{description || command}"
-  system(command) || abort("Command failed: #{command}")
+def run_command(command, description = nil, silent: false)
+  ColorOutput.info(description || command)
+  
+  if silent
+    stdout, stderr, status = Open3.capture3(command)
+    unless status.success?
+      ColorOutput.error("Command failed: #{command}")
+      ColorOutput.error("Error: #{stderr}") unless stderr.empty?
+      return false
+    end
+  else
+    unless system(command)
+      ColorOutput.error("Command failed: #{command}")
+      return false
+    end
+  end
+  true
 end
 
 def ask_question(question, default = nil)
   print "#{question}"
-  print " [#{default}]" if default
+  print " \e[90m[#{default}]\e[0m" if default
   print ": "
   answer = gets.chomp
   answer.empty? ? default : answer
+end
+
+def ask_yes_no(question, default = true)
+  default_text = default ? "Y/n" : "y/N"
+  print "#{question} [#{default_text}]: "
+  answer = gets.chomp.downcase
+  
+  if answer.empty?
+    default
+  else
+    answer == 'y' || answer == 'yes'
+  end
 end
 
 def generate_secret
   SecureRandom.hex(64)
 end
 
-puts "🚀 SaaS Foundation Setup"
-puts "========================"
-puts ""
+def check_requirements
+  ColorOutput.section("🔍 Checking Requirements")
+  
+  requirements = {
+    'ruby' => '3.0.0',
+    'node' => '18.0.0',
+    'yarn' => '1.0.0',
+    'psql' => nil,
+    'redis-cli' => nil
+  }
+  
+  all_ok = true
+  
+  requirements.each do |cmd, min_version|
+    stdout, stderr, status = Open3.capture3("which #{cmd}")
+    
+    if status.success?
+      if min_version
+        version_cmd = case cmd
+                      when 'ruby' then "#{cmd} --version | awk '{print $2}'"
+                      when 'node' then "#{cmd} --version | sed 's/v//'"
+                      when 'yarn' then "#{cmd} --version"
+                      end
+        
+        version, _, _ = Open3.capture3(version_cmd)
+        version = version.strip
+        
+        if Gem::Version.new(version) >= Gem::Version.new(min_version)
+          ColorOutput.success("#{cmd} (#{version})")
+        else
+          ColorOutput.warning("#{cmd} version #{version} found, but #{min_version}+ recommended")
+        end
+      else
+        ColorOutput.success("#{cmd} found")
+      end
+    else
+      ColorOutput.error("#{cmd} not found - please install it first")
+      all_ok = false
+    end
+  end
+  
+  unless all_ok
+    ColorOutput.error("Missing requirements. Please install them and try again.")
+    exit 1
+  end
+end
+
+# Main setup
+puts "\e[36m"
+puts "╔═══════════════════════════════════════╗"
+puts "║     🚀 SaaS Foundation Setup 🚀       ║"
+puts "╚═══════════════════════════════════════╝"
+puts "\e[0m"
 
 # Check if this is a fresh clone
-if File.exist?('.git') && File.read('.git/HEAD').include?('saas_foundation')
-  puts "⚠️  This appears to be the original SaaS Foundation repository."
-  puts "   You should fork or clone this to a new project directory first."
+if File.exist?('.git/config') && File.read('.git/config').include?('rails-saas-foundation')
+  ColorOutput.warning("This appears to be the original SaaS Foundation repository.")
+  ColorOutput.warning("You should fork or clone this to a new project directory first.")
   puts ""
   exit 1
 end
 
-# Get project information
-project_name = ask_question("What's your project name?", "My SaaS App")
-project_slug = project_name.downcase.gsub(/[^a-z0-9]/, '_')
-database_name = "#{project_slug}_development"
+# Check requirements
+check_requirements
 
-puts ""
-puts "📝 Project Setup"
-puts "=================="
+# Get project information
+ColorOutput.section("📋 Project Configuration")
+
+project_name = ask_question("Project name", "My SaaS App")
+project_slug = project_name.downcase.gsub(/[^a-z0-9]/, '_').gsub(/_+/, '_')
+project_description = ask_question("Project description", "A SaaS application built with Rails")
+setup_git = ask_yes_no("Initialize Git repository?", true)
+install_deps = ask_yes_no("Install dependencies now?", true)
+create_db = ask_yes_no("Create database?", true)
+run_migrations = create_db && ask_yes_no("Run migrations?", true)
+
+ColorOutput.section("📝 Updating Project Files")
 
 # Update application name
-puts "→ Updating application name..."
-config_app = File.read('config/application.rb')
-config_app.gsub!('SaasFoundation', project_name.gsub(/[^A-Za-z0-9]/, ''))
-File.write('config/application.rb', config_app)
-
-# Update database configuration
-puts "→ Updating database configuration..."
-database_config = File.read('config/database.yml')
-database_config.gsub!('saas_foundation', project_slug)
-File.write('config/database.yml', database_config)
-
-# Update package.json
-puts "→ Updating package.json..."
-package_json = File.read('package.json')
-package_json.gsub!('"name": "app"', %("name": "#{project_slug}"))
-File.write('package.json', package_json)
-
-# Create environment files
-puts ""
-puts "🔐 Environment Setup"
-puts "==================="
-
-if File.exist?('.env')
-  puts "→ .env file already exists, skipping..."
-else
-  puts "→ Creating .env file..."
-  FileUtils.cp('.env.example', '.env')
-  
-  # Update .env with generated secrets
-  env_content = File.read('.env')
-  env_content.gsub!('your_google_client_id', 'REPLACE_WITH_GOOGLE_CLIENT_ID')
-  env_content.gsub!('your_google_client_secret', 'REPLACE_WITH_GOOGLE_CLIENT_SECRET')
-  env_content.gsub!('your_github_client_id', 'REPLACE_WITH_GITHUB_CLIENT_ID')
-  env_content.gsub!('your_github_client_secret', 'REPLACE_WITH_GITHUB_CLIENT_SECRET')
-  env_content.gsub!('postgresql://localhost/saas_foundation_development', "postgresql://localhost/#{database_name}")
-  File.write('.env', env_content)
+begin
+  ColorOutput.info("Updating application name...")
+  config_app = File.read('config/application.rb')
+  config_app.gsub!('SaasFoundation', project_name.gsub(/[^A-Za-z0-9]/, ''))
+  File.write('config/application.rb', config_app)
+  ColorOutput.success("Application name updated")
+rescue => e
+  ColorOutput.error("Failed to update application name: #{e.message}")
 end
 
-puts ""
-puts "📦 Dependencies"
-puts "==============="
+# Update database configuration
+begin
+  ColorOutput.info("Updating database configuration...")
+  database_config = File.read('config/database.yml')
+  database_config.gsub!('saas_foundation', project_slug)
+  File.write('config/database.yml', database_config)
+  ColorOutput.success("Database configuration updated")
+rescue => e
+  ColorOutput.error("Failed to update database configuration: #{e.message}")
+end
 
-# Install Ruby dependencies
-run_command("bundle install", "Installing Ruby gems...")
+# Update package.json
+begin
+  ColorOutput.info("Updating package.json...")
+  if File.exist?('package.json')
+    package_json = File.read('package.json')
+    package_json.gsub!('"name": "app"', %("name": "#{project_slug}"))
+    package_json.gsub!('"description": ""', %("description": "#{project_description}"))
+    File.write('package.json', package_json)
+    ColorOutput.success("package.json updated")
+  end
+rescue => e
+  ColorOutput.error("Failed to update package.json: #{e.message}")
+end
 
-# Install Node dependencies
-run_command("yarn install", "Installing Node packages...")
+# Update README
+begin
+  ColorOutput.info("Updating README...")
+  readme = File.read('README.md')
+  readme.gsub!('SaaS Foundation', project_name)
+  readme.gsub!('rails-saas-foundation', project_slug)
+  readme.gsub!('your-username', ENV['USER'] || 'your-username')
+  File.write('README.md', readme)
+  ColorOutput.success("README updated")
+rescue => e
+  ColorOutput.error("Failed to update README: #{e.message}")
+end
 
-puts ""
-puts "🗄️  Database Setup"
-puts "=================="
+ColorOutput.section("🔐 Environment Setup")
 
-# Setup database
-run_command("rails db:create", "Creating databases...")
-run_command("rails db:migrate", "Running migrations...")
+# Create environment files
+if File.exist?('.env')
+  ColorOutput.warning(".env file already exists, skipping...")
+else
+  ColorOutput.info("Creating .env file...")
+  if File.exist?('.env.example')
+    FileUtils.cp('.env.example', '.env')
+    
+    # Update .env with project-specific values
+    env_content = File.read('.env')
+    env_content.gsub!('saas_foundation_development', "#{project_slug}_development")
+    env_content.gsub!('localhost:3000', 'localhost:3000')
+    
+    # Generate secure passwords
+    env_content.gsub!('SIDEKIQ_PASSWORD=password', "SIDEKIQ_PASSWORD=#{SecureRandom.hex(16)}")
+    
+    File.write('.env', env_content)
+    ColorOutput.success(".env file created")
+    ColorOutput.info("Remember to update .env with your API keys!")
+  else
+    ColorOutput.warning(".env.example not found")
+  end
+end
+
+# Generate new master key if needed
+if !File.exist?('config/master.key')
+  ColorOutput.info("Generating new master key...")
+  run_command("EDITOR=echo rails credentials:edit", "Creating credentials", silent: true)
+  ColorOutput.success("Master key generated")
+end
+
+if install_deps
+  ColorOutput.section("📦 Installing Dependencies")
+  
+  # Install Ruby dependencies
+  if run_command("bundle install", "Installing Ruby gems...")
+    ColorOutput.success("Ruby gems installed")
+  else
+    ColorOutput.error("Failed to install Ruby gems")
+  end
+  
+  # Install Node dependencies
+  if run_command("yarn install", "Installing Node packages...")
+    ColorOutput.success("Node packages installed")
+  else
+    ColorOutput.error("Failed to install Node packages")
+  end
+end
+
+if create_db
+  ColorOutput.section("🗄️ Database Setup")
+  
+  # Check if PostgreSQL is running
+  pg_running = system("pg_isready", out: File::NULL, err: File::NULL)
+  
+  if pg_running
+    if run_command("rails db:create", "Creating databases...")
+      ColorOutput.success("Databases created")
+      
+      if run_migrations && run_command("rails db:migrate", "Running migrations...")
+        ColorOutput.success("Migrations completed")
+      end
+    else
+      ColorOutput.warning("Could not create database. Make sure PostgreSQL is running.")
+    end
+  else
+    ColorOutput.warning("PostgreSQL is not running. Skipping database setup.")
+    ColorOutput.info("Start PostgreSQL and run: rails db:create db:migrate")
+  end
+end
 
 # Build assets
-puts ""
-puts "🎨 Assets"
-puts "========="
-run_command("yarn build", "Building JavaScript...")
-run_command("yarn build:css", "Building CSS...")
+ColorOutput.section("🎨 Building Assets")
 
+if run_command("yarn build", "Building JavaScript...", silent: true)
+  ColorOutput.success("JavaScript built")
+else
+  ColorOutput.warning("JavaScript build failed")
+end
+
+if run_command("yarn build:css", "Building CSS...", silent: true)
+  ColorOutput.success("CSS built")
+else
+  ColorOutput.warning("CSS build failed - this is normal if using Tailwind v4")
+end
+
+if setup_git
+  ColorOutput.section("📚 Git Setup")
+  
+  if !File.exist?('.git')
+    run_command("git init", "Initializing git repository...")
+  end
+  
+  # Remove origin if it points to the template
+  system("git remote remove origin", out: File::NULL, err: File::NULL)
+  
+  run_command("git add .", "Adding files to git...", silent: true)
+  run_command("git commit -m 'Initial commit: #{project_name} setup'", "Creating initial commit...", silent: true)
+  ColorOutput.success("Git repository initialized")
+end
+
+# Final message
 puts ""
-puts "✅ Setup Complete!"
-puts "=================="
+puts "\e[32m" + "=" * 50 + "\e[0m"
+puts "\e[32m✅ Setup Complete!\e[0m"
+puts "\e[32m" + "=" * 50 + "\e[0m"
 puts ""
-puts "Your SaaS Foundation is ready! Here's what to do next:"
+puts "Your SaaS '#{project_name}' is ready! Here's what to do next:"
 puts ""
-puts "1. 📝 Update your .env file with real API keys:"
-puts "   - Google OAuth: https://console.developers.google.com/"
-puts "   - GitHub OAuth: https://github.com/settings/applications/new"
-puts "   - Stripe: https://dashboard.stripe.com/apikeys"
+puts "\e[36m1. Configure your services:\e[0m"
+puts "   • Edit \e[33m.env\e[0m with your API keys:"
+puts "     - Google OAuth: https://console.developers.google.com/"
+puts "     - GitHub OAuth: https://github.com/settings/applications/new"
+puts "     - Stripe: https://dashboard.stripe.com/apikeys"
 puts ""
-puts "2. 🚀 Start the development server:"
-puts "   rails server"
+puts "\e[36m2. Start the development servers:\e[0m"
+puts "   • Rails: \e[33mrails server\e[0m"
+puts "   • Jobs:  \e[33mbundle exec sidekiq\e[0m (in another terminal)"
+puts "   • Email: \e[33mmailcatcher\e[0m (optional, for testing emails)"
 puts ""
-puts "3. 🔧 Start Sidekiq for background jobs:"
-puts "   bundle exec sidekiq"
+puts "\e[36m3. Access your application:\e[0m"
+puts "   • Open: \e[33mhttp://localhost:3000\e[0m"
 puts ""
-puts "4. 📧 For email testing, install MailCatcher:"
-puts "   gem install mailcatcher && mailcatcher"
+puts "\e[36m4. Run tests:\e[0m"
+puts "   • RSpec: \e[33mrspec\e[0m"
+puts "   • Minitest: \e[33mrails test\e[0m"
 puts ""
-puts "5. 🧪 Run the test suite:"
-puts "   rspec  # or: rails test"
+
+if !create_db || !pg_running
+  puts "\e[33m⚠️  Database setup was skipped.\e[0m"
+  puts "   Run these commands when PostgreSQL is available:"
+  puts "   • \e[33mrails db:create\e[0m"
+  puts "   • \e[33mrails db:migrate\e[0m"
+  puts ""
+end
+
+puts "\e[32mHappy coding! 🎉\e[0m"
 puts ""
-puts "Happy coding! 🎉"
+puts "Need help? Check the README or open an issue on GitHub."
