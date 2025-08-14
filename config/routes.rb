@@ -19,7 +19,7 @@ Rails.application.routes.draw do
   get "dashboard" => "home#dashboard"
 
   # Billing routes
-  resources :billing, only: [:show, :update] do
+  resources :subscriptions, controller: 'billing', only: [:show, :update] do
     member do
       get :checkout
       post :create_checkout_session

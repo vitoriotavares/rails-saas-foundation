@@ -32,7 +32,7 @@
           <div class="flex items-center space-x-4">
             <% if user_signed_in? %>
               <%= link_to "Dashboard", dashboard_path, class: "text-gray-600 hover:text-gray-900" %>
-              <%= link_to "Billing", billing_path(current_user), class: "text-gray-600 hover:text-gray-900" %>
+              <%= link_to "Billing", subscription_path(current_user), class: "text-gray-600 hover:text-gray-900" %>
               <%= link_to "Sign out", destroy_user_session_path, method: :delete, class: "text-gray-600 hover:text-gray-900" %>
             <% else %>
               <%= link_to "Sign in", new_user_session_path, class: "text-gray-600 hover:text-gray-900" %>
