@@ -1,5 +1,19 @@
 module SeoHelper
   def default_meta_tags
+    og_image = begin
+      # Try to use og-placeholder.svg if it exists, otherwise use icon.png
+      if Rails.application.assets_manifest.find_sources('og-placeholder.svg').any?
+        image_url('og-placeholder.svg')
+      elsif File.exist?(Rails.root.join('public', 'icon.png'))
+        '/icon.png'
+      else
+        nil
+      end
+    rescue => e
+      Rails.logger.debug "SEO Helper: Could not find OG image: #{e.message}"
+      nil
+    end
+
     {
       site: 'SaaS Foundation',
       title: 'SaaS Foundation - Rails 8 Template for Building SaaS Applications',
@@ -16,18 +30,18 @@ module SeoHelper
         description: :description,
         type: 'website',
         url: request.original_url,
-        image: image_url('og-image.png'),
+        image: og_image,
         site_name: 'SaaS Foundation'
       },
       twitter: {
-        card: 'summary_large_image',
+        card: og_image ? 'summary_large_image' : 'summary',
         site: '@saas_foundation',
         creator: '@saas_foundation',
         title: :title,
         description: :description,
-        image: image_url('og-image.png')
+        image: og_image
       }
-    }
+    }.compact
   end
 
   def page_title(title = nil)
