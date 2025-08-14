@@ -126,12 +126,16 @@ puts "║     🚀 SaaS Foundation Setup 🚀       ║"
 puts "╚═══════════════════════════════════════╝"
 puts "\e[0m"
 
-# Check if this is a fresh clone
-if File.exist?('.git/config') && File.read('.git/config').include?('rails-saas-foundation')
-  ColorOutput.warning("This appears to be the original SaaS Foundation repository.")
-  ColorOutput.warning("You should fork or clone this to a new project directory first.")
-  puts ""
-  exit 1
+# Check if this is a fresh clone (skip check if running in test mode)
+if ENV['SKIP_REPO_CHECK'] != 'true'
+  if File.exist?('.git/config') && File.read('.git/config').include?('rails-saas-foundation')
+    if File.basename(Dir.pwd) == 'saas_foundation'
+      ColorOutput.warning("This appears to be the original SaaS Foundation repository.")
+      ColorOutput.warning("You should fork or clone this to a new project directory first.")
+      puts ""
+      exit 1
+    end
+  end
 end
 
 # Check requirements
