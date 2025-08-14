@@ -39,6 +39,8 @@ class CreatePayTables < ActiveRecord::Migration[8.0]
       t.datetime :current_period_end
       t.datetime :trial_ends_at
       t.datetime :ends_at
+      t.datetime :pause_starts_at
+      t.datetime :pause_resumes_at
       t.decimal :application_fee_percent, precision: 4, scale: 2
       t.public_send Pay::Adapter.json_column_type, :metadata
       t.public_send Pay::Adapter.json_column_type, :data

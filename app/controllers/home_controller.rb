@@ -7,6 +7,15 @@ class HomeController < ApplicationController
 
   def dashboard
     @user = current_user
-    @subscriptions = @user.subscriptions.active if @user.respond_to?(:subscriptions)
+    @subscriptions = begin
+      if @user.respond_to?(:subscriptions) && defined?(Pay)
+        @user.subscriptions.active
+      else
+        []
+      end
+    rescue => e
+      Rails.logger.error "Error loading subscriptions: #{e.message}"
+      []
+    end
   end
 end
